@@ -9,10 +9,10 @@
 import UIKit
 import CoreBluetooth
 
-class BLEDeviceConnectionVC: UIViewController
-{
+class BLEDeviceConnectionVC: UIViewController {
+    
     //MARK: - IBOUTLET/VARIABLE -
-
+    
     @IBOutlet weak var lblMessage: UILabel!
     @IBOutlet weak var txtViewResponse: UITextView!
     @IBOutlet weak var txtCommand: UITextField!
@@ -24,8 +24,7 @@ class BLEDeviceConnectionVC: UIViewController
     
     // MARK: - VIEW LIFE CYCLE -
     
-    override func viewDidLoad()
-    {
+    override func viewDidLoad() {
         super.viewDidLoad()
         
         serial.delegate = self
@@ -33,8 +32,7 @@ class BLEDeviceConnectionVC: UIViewController
         // Do any additional setup after loading the view.
     }
     
-    override func viewWillDisappear(_ animated: Bool)
-    {
+    override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         
         //REMOVE DELEGATE
@@ -42,23 +40,20 @@ class BLEDeviceConnectionVC: UIViewController
     }
     
     // MARK: - IBACTION METHODS -
-
-    @IBAction func actionSend(_ sender: UIButton)
-    {
+    
+    @IBAction func actionSend(_ sender: UIButton) {
         //HIDE KEYBOARD
         txtCommand.resignFirstResponder()
         
         //CHECK IF TEXTFILELD HAVE VALUE OR NOT
-        if txtCommand.text == STREMPTY
-        {
+        if txtCommand.text == STREMPTY {
             showAlert("Please enter command.", vc: self)
             return
         }
         serial.sendMessageToDevice(txtCommand.text!)
     }
     
-    @IBAction func actionBack(_ sender: UIButton)
-    {
+    @IBAction func actionBack(_ sender: UIButton) {
         //DISCONNECT BLE
         serial.disconnect()
         
@@ -68,8 +63,7 @@ class BLEDeviceConnectionVC: UIViewController
     // MARK: - CUSTOM METHODS -
     
     //SCAN NEAR BY BLE
-    func scanBLE()
-    {
+    func scanBLE() {
         serial.startScan()
         lblMessage.text = "Scanning...."
         
@@ -77,13 +71,11 @@ class BLEDeviceConnectionVC: UIViewController
     }
     
     /// Should be called 10s after we've begun scanning
-    @objc func scanTimeOut()
-    {
+    @objc func scanTimeOut() {
         // timeout has occurred, stop scanning and give the user the option to try again
         serial.stopScan()
         
-        if peripherals.count == 0
-        {
+        if peripherals.count == 0 {
             lblMessage.text = MSGNODEVICE
             showAlert(MSGNODEVICE, vc: self)
         }
@@ -103,31 +95,25 @@ class BLEDeviceConnectionVC: UIViewController
         connnectFail()
     }
     
-    func connnectFail()
-    {
+    //CALLED WHNE DEVICE CONNECTION FAILS
+    func connnectFail() {
         showAlert(MSGUNABLETOCONNECT, vc: self)
         lblMessage.text = MSGNODEVICE
     }
     
     //ASK USER TO RECONNECT DEVICE IF DEVICE DISCONNECTS
-    func connectDeviceAlert()
-    {
+    func connectDeviceAlert() {
         controller = UIAlertController(title: TITLEDEVICEDISCONNECT, message: MSGRECONNECTDEVICE, preferredStyle: UIAlertController.Style.alert)
         let okAction = UIAlertAction(title: CONNECT, style: .default) { (UIAlertAction) in
-            if serial.pendingPeripheral != nil
-            {
+            if serial.pendingPeripheral != nil {
                 serial.connectToPeripheral(serial.pendingPeripheral!)
-            }
-            else
-            {
+            } else {
                 showAlert(MSGNODEVICE, vc: self)
                 self.lblMessage.text = MSGNODEVICE
             }
         }
         let cancelAction = UIAlertAction(title: CLOSEREMOTE, style: .cancel) { (UIAlertAction) in
-            
             APPDELEGATE.popToScan()
-
         }
         
         controller.addAction(okAction)
@@ -136,18 +122,15 @@ class BLEDeviceConnectionVC: UIViewController
     }
     
     //ASK USER TO SWITCH ON THE BLUETOOTH
-    func turnOnBLuetooth()
-    {
+    func turnOnBLuetooth() {
         controller = UIAlertController(title: STREMPTY, message: MSGNOBLUETOOTH, preferredStyle: UIAlertController.Style.alert)
         
         let okAction = UIAlertAction(title: GOTIT, style: .default) { (UIAlertAction) in
             
-            DispatchQueue.main.asyncAfter(deadline:.now(), execute:
-                {
-                    if serial.centralManager.state != .poweredOn
-                    {
-                        self.turnOnBLuetooth()
-                    }
+            DispatchQueue.main.asyncAfter(deadline:.now(), execute: {
+                if serial.centralManager.state != .poweredOn {
+                    self.turnOnBLuetooth()
+                }
             })
         }
         
@@ -161,65 +144,53 @@ class BLEDeviceConnectionVC: UIViewController
     }
 }
 
-extension BLEDeviceConnectionVC : BluetoothSerialDelegate
-{
-    func serialDidDiscoverPeripheral(_ peripheral: CBPeripheral, RSSI: NSNumber?)
-    {
+extension BLEDeviceConnectionVC : BluetoothSerialDelegate {
+    
+    func serialDidDiscoverPeripheral(_ peripheral: CBPeripheral, RSSI: NSNumber?) {
         // add to the array, next sort & reload
         let theRSSI = RSSI?.floatValue ?? 0.0
         peripherals.append((peripheral: peripheral, RSSI: theRSSI))
         peripherals.sort { $0.RSSI < $1.RSSI }
     }
     
-    func serialDidReceiveString(_ message: String)
-    {
+    func serialDidReceiveString(_ message: String) {
         NSLog("response = %@",message)
         txtViewResponse.text = message + NEWLINE + txtViewResponse.text
     }
     
-    func serialDidDisconnect(_ peripheral: CBPeripheral, error: NSError?)
-    {
+    func serialDidDisconnect(_ peripheral: CBPeripheral, error: NSError?) {
         serial.pendingPeripheral = peripheral
         print("device Disconnected")
         
-        if serial.centralManager.state == .poweredOn
-        {
+        if serial.centralManager.state == .poweredOn {
             connectDeviceAlert()
         }
     }
     
-    func serialDidChangeState()
-    {
-        if serial.centralManager.state != .poweredOn
-        {
+    func serialDidChangeState() {
+        if serial.centralManager.state != .poweredOn {
             turnOnBLuetooth()
-        }
-        else if serial.centralManager.state == .poweredOn
-        {
+        } else if serial.centralManager.state == .poweredOn {
             controller.dismiss(animated: true, completion: nil)
             scanBLE()
         }
     }
     
-    func serialDidFailToConnect(_ peripheral: CBPeripheral, error: NSError?)
-    {
+    func serialDidFailToConnect(_ peripheral: CBPeripheral, error: NSError?) {
         connectDeviceAlert()
     }
     
-    func serialIsReady(_ peripheral: CBPeripheral)
-    {
+    func serialIsReady(_ peripheral: CBPeripheral) {
         print("Connected device again")
         serial.pendingPeripheral = nil
         lblMessage.text = STRCONNECTED
     }
 }
 
-extension BLEDeviceConnectionVC : UITextFieldDelegate
-{
+extension BLEDeviceConnectionVC : UITextFieldDelegate {
     // MARK: - UITextField - Delegate
     
-    func textFieldShouldReturn(_ textField: UITextField) -> Bool
-    {
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         textField.resignFirstResponder()
         return true
     }

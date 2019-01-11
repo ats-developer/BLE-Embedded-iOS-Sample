@@ -9,8 +9,8 @@
 import UIKit
 import CoreBluetooth
 
-class BLEScanVC: UIViewController
-{
+class BLEScanVC: UIViewController {
+    
     //MARK: - IBOUTLET/VARIABLE -
     
     @IBOutlet weak var tryAgainButton: UIButton!
@@ -25,41 +25,40 @@ class BLEScanVC: UIViewController
     
     // MARK: - VIEW LIFE CYCLE -
     
-    override func viewDidLoad()
-    {
+    override func viewDidLoad() {
         super.viewDidLoad()
         
+        initOnce()
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        DispatchQueue.main.asyncAfter(deadline:.now() + 2.0, execute: {
+                self.scanBLE()
+        })
+    }
+    
+    // MARK: - CUSTOM METHODS -
+    
+    //INITIALIZE ONCE
+    func initOnce() {
         self.navigationController?.navigationBar.isHidden = true
         
-        DispatchQueue.main.asyncAfter(deadline:.now(), execute:
-            {
+        DispatchQueue.main.asyncAfter(deadline:.now(), execute: {
+                // init serial
                 serial = BluetoothSerial(delegate: self)
         })
-        // init serial
-
+        
         lblTitle.text = TITLEBLEDEVICELIST
         
         // remove extra seperator insets (looks better imho)
         tableView.tableFooterView = UIView(frame: CGRect.zero)
     }
     
-    override func viewWillAppear(_ animated: Bool)
-    {
-        super.viewWillAppear(animated)
-                
-        DispatchQueue.main.asyncAfter(deadline:.now() + 2.0, execute:
-            {
-                self.scanBLE()
-        })
-    }
-    
-    // MARK: - CUSTOM METHODS -
-    func scanBLE()
-    {
-        //SVProgressHUD.show()
-        
-        if serial.centralManager.state != .poweredOn
-        {
+    //SCAN NEAR BY BLE DEVICE
+    func scanBLE() {
+        if serial.centralManager.state != .poweredOn {
             print("called")
             peripherals.removeAll()
             tableView.reloadData()
@@ -73,22 +72,17 @@ class BLEScanVC: UIViewController
     }
     
     /// Should be called 10s after we've begun scanning
-    @objc func scanTimeOut()
-    {
+    @objc func scanTimeOut() {
         // timeout has occurred, stop scanning and give the user the option to try again
         serial.stopScan()
         tryAgainButton.setTitle(TITLESCAN, for: .normal)
-        //SVProgressHUD.dismiss()
-        if peripherals.count == 0
-        {
+        if peripherals.count == 0 {
             showAlert(MSGNODEVICE, vc: self)
         }
     }
     
     /// Should be called 10s after we've begun connecting
-    @objc func connectTimeOut()
-    {
-        //SVProgressHUD.dismiss()
+    @objc func connectTimeOut() {
         // don't if we've already connected
         if let _ = serial.connectedPeripheral {
             return
@@ -100,35 +94,28 @@ class BLEScanVC: UIViewController
         connnectFail()
     }
     
-    func connnectFail()
-    {
+    //CALLED WHEN FAIL TO CONNECT
+    func connnectFail() {
         showAlert(MSGUNABLETOCONNECT, vc: self)
     }
     
-    func turnOnBLuetooth()
-    {
+    //CALLED WHEN BLUETOOTH GOES OFF
+    func turnOnBLuetooth() {
         showAlert(MSGNOBLUETOOTH, vc: self)
     }
     
     // MARK: - IBACTION METHODS -
     
-    @IBAction func tryAgain(_ sender: UIButton)
-    {
-        if serial.centralManager.state != .poweredOn
-        {
+    @IBAction func tryAgain(_ sender: UIButton) {
+        if serial.centralManager.state != .poweredOn {
             turnOnBLuetooth()
-        }
-        else
-        {
+        } else {
             // empty array an start again
-            if sender.title(for: .normal) == TITLESCAN
-            {
+            if sender.title(for: .normal) == TITLESCAN {
                 peripherals = []
                 tableView.reloadData()
                 scanBLE()
-            }
-            else
-            {
+            } else {
                 serial.stopScan()
                 tryAgainButton.setTitle(TITLESCAN, for: .normal)
             }
@@ -136,8 +123,7 @@ class BLEScanVC: UIViewController
     }
 }
 
-extension BLEScanVC : UITableViewDataSource
-{
+extension BLEScanVC : UITableViewDataSource {
     // MARK: - UITABLEVIEW DATASOURCE -
     
     func numberOfSections(in tableView: UITableView) -> Int {
@@ -148,8 +134,7 @@ extension BLEScanVC : UITableViewDataSource
         return peripherals.count
     }
     
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell
-    {
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         // return a cell with the peripheral name as text in the label
         let cell = tableView.dequeueReusableCell(withIdentifier: "cell")!
         let label = cell.viewWithTag(1) as! UILabel?
@@ -161,20 +146,17 @@ extension BLEScanVC : UITableViewDataSource
     }
 }
 
-extension BLEScanVC : UITableViewDelegate
-{
+extension BLEScanVC : UITableViewDelegate {
+   
     // MARK: - UITABLEVIEW DELEGATE -
     
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath)
-    {
-        if serial.centralManager.state != .poweredOn
-        {
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        if serial.centralManager.state != .poweredOn {
             turnOnBLuetooth()
             return
         }
         
         tableView.deselectRow(at: indexPath, animated: true)
-        //SVProgressHUD.show()
         // the user has selected a peripheral, so stop scanning and proceed to the next view
         serial.stopScan()
         selectedPeripheral = peripherals[(indexPath as NSIndexPath).row].peripheral
@@ -184,18 +166,17 @@ extension BLEScanVC : UITableViewDelegate
         Timer.scheduledTimer(timeInterval: 10, target: self, selector: #selector(BLEScanVC.connectTimeOut), userInfo: nil, repeats: false)
     }
     
-    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat
-    {
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return 102
     }
 }
 
-extension BLEScanVC : BluetoothSerialDelegate
-{
+extension BLEScanVC : BluetoothSerialDelegate {
+    
     //MARK:- BluetoothSerialDelegate -
     
-    func serialDidDiscoverPeripheral(_ peripheral: CBPeripheral, RSSI: NSNumber?)
-    {
+    //DISCOVER NEARBY BLE DEVICE
+    func serialDidDiscoverPeripheral(_ peripheral: CBPeripheral, RSSI: NSNumber?) {
         // check whether it is a duplicate
         for exisiting in peripherals {
             if exisiting.peripheral.identifier == peripheral.identifier { return }
@@ -205,40 +186,33 @@ extension BLEScanVC : BluetoothSerialDelegate
         let theRSSI = RSSI?.floatValue ?? 0.0
         peripherals.append((peripheral: peripheral, RSSI: theRSSI))
         peripherals.sort { $0.RSSI < $1.RSSI }
-        if peripherals.count > 0
-        {
-            //SVProgressHUD.dismiss()
-        }
+        
         tableView.reloadData()
     }
     
-    func serialDidFailToConnect(_ peripheral: CBPeripheral, error: NSError?)
-    {
-        //SVProgressHUD.dismiss()
+    //CALLED WHEN FAIL TO CONNEC BLE DEVICE
+    func serialDidFailToConnect(_ peripheral: CBPeripheral, error: NSError?) {
         let msg = "\(MSGUNABLETOCONNECT) \(String(describing: peripheral.name))"
         showAlert(msg, vc: self)
     }
     
-    func serialDidDisconnect(_ peripheral: CBPeripheral, error: NSError?)
-    {
-        
+    func serialDidDisconnect(_ peripheral: CBPeripheral, error: NSError?) {
+        print("Disconnected")
     }
     
-    func serialIsReady(_ peripheral: CBPeripheral)
-    {
+    //CALLED WHEN DEVICE GET CONNECTED
+    func serialIsReady(_ peripheral: CBPeripheral) {
+        //NAVIGATE TO NEXT SCREEN WHEN BLE GOT CONNECTED
         self.performSegue(withIdentifier: "scanToDevice", sender: nil)
     }
     
-    func serialDidChangeState()
-    {
-        if serial.centralManager.state != .poweredOn
-        {
+    //CALLED WHEN BLUETOOTH STATE CHANGE
+    func serialDidChangeState() {
+        if serial.centralManager.state != .poweredOn {
             peripherals = []
             tableView.reloadData()
             turnOnBLuetooth()
-        }
-        else if serial.centralManager.state == .poweredOn
-        {
+        } else if serial.centralManager.state == .poweredOn {
             scanBLE()
         }
     }
